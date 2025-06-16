@@ -6,11 +6,18 @@
     <title>Your Donegal Itinerary Map</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom styles for the map and info windows */
+        /* Base styles */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
         #map {
             height: 100vh;
             width: 100%;
         }
+        /* Custom Info Window styles */
         .gm-style-iw {
             border-radius: 8px !important;
         }
@@ -30,18 +37,28 @@
             font-size: 0.9rem;
             color: #4b5563;
         }
-        /* Style for the API key error message */
-        #apiKeyError {
+        /* Style for the full-page API key error message */
+        #apiKeyErrorContainer {
             display: none; /* Hidden by default */
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000; /* Ensure it's on top */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f8fafc; /* A light, clean background */
+            z-index: 2000; /* Ensure it's on top of everything */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 1rem;
         }
     </style>
+     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+<body class="bg-gray-100 leading-normal tracking-normal">
 
     <div id="map"></div>
 
@@ -52,16 +69,19 @@
          <p class="text-xs text-gray-500 mt-4">Click on a marker to see details. You can toggle the visibility of each day's route.</p>
     </div>
     
-    <!-- API Key Error Message -->
-    <div id="apiKeyError" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-xl max-w-md w-full">
-        <h3 class="font-bold text-lg mb-2">Mapa deshabilitado temporariamente.</h3>
-        <p>Pedile a Jorge que habilite el mapa.</p>
+    <!-- Full-page API Key Error Message -->
+    <div id="apiKeyErrorContainer">
+        <div class="bg-white border border-red-200 p-8 rounded-lg shadow-2xl max-w-lg w-full">
+            <h3 class="font-bold text-red-600 text-2xl mb-3">Map Loading Error</h3>
+            <p class="text-gray-700 text-lg">This map has been temporarily disabled.</p>
+            <p class="mt-4 text-gray-500 text-sm">Pedile a Jorge que lo habilite por un rato.</p>
+        </div>
     </div>
 
 
     <script>
         // --- IMPORTANT: PASTE YOUR GOOGLE MAPS API KEY HERE ---
-        const apiKey = 'XXX';
+        const apiKey = 'AIzaSyBRenk2uinG3AwVrF6oegXtPfRmdJ_y_BE';
 
         // --- DATA: Points of Interest for your Donegal Trip ---
         const day1Locations = [
@@ -107,47 +127,25 @@
 
         // This is the main function that runs once the Google Maps API is ready
         function initMap() {
-
-            // First, check if the API key has been replaced.
-            if (apiKey === 'YOUR_API_KEY' || !apiKey) {
-                document.getElementById('map').style.display = 'none'; // Hide the map
-                document.getElementById('legend').style.display = 'none'; // Hide the legend
-                document.getElementById('apiKeyError').style.display = 'block'; // Show the error
-                console.error("Google Maps API key is missing. Please replace 'YOUR_API_KEY' in the script.");
-                return; // Stop the function from running further
-            }
-        
-            // Initialize variables that depend on the Google Maps API
             infoWindow = new google.maps.InfoWindow();
             routes = {}; // To hold references to markers and polylines
 
             const mapOptions = {
                 zoom: 9,
-                center: { lat: 54.85, lng: -8.35 }, // Centered on the heart of Donegal
+                center: { lat: 54.85, lng: -8.35 },
                 mapTypeId: 'terrain',
                 styles: [ // Custom map styling
                     { elementType: "geometry", stylers: [{ color: "#ebe3cd" }] },
                     { elementType: "labels.text.fill", stylers: [{ color: "#523735" }] },
                     { elementType: "labels.text.stroke", stylers: [{ color: "#f5f1e6" }] },
                     { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#c9b2a6" }] },
-                    { featureType: "administrative.land_parcel", elementType: "geometry.stroke", stylers: [{ color: "#dcd2be" }] },
-                    { featureType: "administrative.land_parcel", elementType: "labels.text.fill", stylers: [{ color: "#ae9e91" }] },
                     { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#dfd2ae" }] },
                     { featureType: "poi", elementType: "geometry", stylers: [{ color: "#dfd2ae" }] },
                     { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#93817c" }] },
                     { featureType: "poi.park", elementType: "geometry.fill", stylers: [{ color: "#a5b076" }] },
-                    { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#447530" }] },
                     { featureType: "road", elementType: "geometry", stylers: [{ color: "#f5f1e6" }] },
-                    { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#fdfcf8" }] },
                     { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#f8c967" }] },
                     { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#e9bc62" }] },
-                    { featureType: "road.highway.controlled_access", elementType: "geometry", stylers: [{ color: "#e98d58" }] },
-                    { featureType: "road.highway.controlled_access", elementType: "geometry.stroke", stylers: [{ color: "#db8555" }] },
-                    { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#806b63" }] },
-                    { featureType: "transit.line", elementType: "geometry", stylers: [{ color: "#dfd2ae" }] },
-                    { featureType: "transit.line", elementType: "labels.text.fill", stylers: [{ color: "#8f7d77" }] },
-                    { featureType: "transit.line", elementType: "labels.text.stroke", stylers: [{ color: "#ebe3cd" }] },
-                    { featureType: "transit.station", elementType: "geometry", stylers: [{ color: "#dfd2ae" }] },
                     { featureType: "water", elementType: "geometry.fill", stylers: [{ color: "#b9d3c2" }] },
                     { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#92998d" }] },
                 ],
@@ -190,63 +188,53 @@
                     },
                     zIndex: locations.length - index
                 });
-
                 pathCoordinates.push(marker.getPosition());
                 markers.push(marker);
-
                 marker.addListener('click', () => {
-                    const content = `
-                        <div class="info-window-content">
-                            <h3>${location.title}</h3>
-                            <p>${location.description}</p>
-                        </div>`;
+                    const content = `<div class="info-window-content"><h3>${location.title}</h3><p>${location.description}</p></div>`;
                     infoWindow.setContent(content);
                     infoWindow.open(map, marker);
                 });
             });
 
-            const polyline = new google.maps.Polyline({
-                path: pathCoordinates,
-                geodesic: true,
-                strokeColor: color,
-                strokeOpacity: 0.7,
-                strokeWeight: 4
-            });
-
+            const polyline = new google.maps.Polyline({ path: pathCoordinates, geodesic: true, strokeColor: color, strokeOpacity: 0.7, strokeWeight: 4 });
             polyline.setMap(map);
-            
             routes[name] = { markers, polyline };
         }
         
         function addLegendItem(name, color, container) {
             const item = document.createElement('div');
             item.className = 'flex items-center mb-2 cursor-pointer';
-            item.innerHTML = `
-                <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${color}; border: 1px solid rgba(0,0,0,0.2);"></span>
-                <span class="text-gray-700 text-sm">${name}</span>
-            `;
-            
+            item.innerHTML = `<span class="w-4 h-4 rounded-full mr-3" style="background-color: ${color}; border: 1px solid rgba(0,0,0,0.2);"></span><span class="text-gray-700 text-sm">${name}</span>`;
             item.addEventListener('click', () => {
                 toggleRouteVisibility(name);
                 item.classList.toggle('opacity-50');
             });
-            
             container.appendChild(item);
         }
 
         function toggleRouteVisibility(name) {
             const route = routes[name];
             if (!route) return;
-
             const isVisible = route.polyline.getMap() !== null;
             const newMap = isVisible ? null : map;
-
             route.polyline.setMap(newMap);
             route.markers.forEach(marker => marker.setMap(newMap));
         }
 
-        // --- Function to load the Google Maps script dynamically ---
         function loadGoogleMapsScript() {
+            // First, check if the API key is missing.
+            if (apiKey.length < 10) {
+                // If key is missing, hide map and legend, and show the custom full-page error.
+                document.getElementById('map').style.display = 'none';
+                document.getElementById('legend').style.display = 'none';
+                const errorContainer = document.getElementById('apiKeyErrorContainer');
+                errorContainer.style.display = 'flex'; // Use flex to center the content.
+                console.error("Google Maps API key is missing. Cannot load map.");
+                return; // Stop execution, preventing the Google script from being loaded.
+            }
+
+            // If key is present, create and append the Google Maps script to the head.
             const script = document.createElement('script');
             script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
             script.async = true;
@@ -254,13 +242,14 @@
             document.head.appendChild(script);
         }
 
-        // Load the script on window load
+        // Trigger the script loading process when the page has loaded.
         window.onload = loadGoogleMapsScript;
+
 
     </script>
     
     <!-- 
-      The Google Maps script is now loaded dynamically by the function above.
+      The Google Maps script is now loaded conditionally and dynamically.
       You still need a Google Maps API key for this to work.
       1. Go to the Google Cloud Console: https://console.cloud.google.com/
       2. Create a new project (or select an existing one).
@@ -275,3 +264,4 @@
 
 </body>
 </html>
+
