@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Donegal Itinerary Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the map and info windows */
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .gm-style-iw {
+            border-radius: 8px !important;
+        }
+        .gm-style-iw-d {
+            overflow: auto !important;
+        }
+        .info-window-content {
+            padding: 8px;
+        }
+        .info-window-content h3 {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #1f2937;
+        }
+        .info-window-content p {
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+        /* Style for the API key error message */
+        #apiKeyError {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000; /* Ensure it's on top */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans leading-normal tracking-normal">
+
+    <div id="map"></div>
+
+    <!-- Legend -->
+    <div id="legend" class="absolute top-4 right-4 bg-white bg-opacity-90 p-4 rounded-lg shadow-lg max-w-xs w-full z-10">
+        <h2 class="text-xl font-bold mb-2 text-gray-800">Itinerary Key</h2>
+        <div id="legend-items"></div>
+         <p class="text-xs text-gray-500 mt-4">Click on a marker to see details. You can toggle the visibility of each day's route.</p>
+    </div>
+    
+    <!-- API Key Error Message -->
+    <div id="apiKeyError" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-xl max-w-md w-full">
+        <h3 class="font-bold text-lg mb-2">Google Maps API Key is Missing!</h3>
+        <p>This map cannot be loaded. You need to add a valid Google Maps API key to the code.</p>
+        <p class="mt-4 text-sm">Please follow the instructions in the HTML file's comments to get a key and add it to the script.</p>
+    </div>
+
+
+    <script>
+        // --- IMPORTANT: PASTE YOUR GOOGLE MAPS API KEY HERE ---
+        const apiKey = 'AIzaSyCqwgjVIid8ZPDswWImuUCjbw_Z4EtJMH8';
+
+        // --- DATA: Points of Interest for your Donegal Trip ---
+        const day1Locations = [
+            { lat: 54.6361, lng: -8.4444, title: 'Killybegs', description: 'Your base of operations. A bustling fishing town with great seafood.' },
+            { lat: 54.6247, lng: -8.6433, title: 'Slieve League Cliffs', description: 'Iconic sea cliffs offering breathtaking views. Higher than the Cliffs of Moher!' },
+            { lat: 54.6320, lng: -8.6455, title: 'Teelin Pier', description: 'Departure point for shuttle buses and boat trips to see the Slieve League cliffs from the water.' },
+            { lat: 54.7089, lng: -8.7261, title: 'Glencolmcille Folk Village', description: 'A charming replica village showcasing traditional Irish life through the centuries.' }
+        ];
+        const day2Locations = [
+            { lat: 54.6361, lng: -8.4444, title: 'Killybegs', description: 'Start of your scenic drive.' },
+            { lat: 54.7623, lng: -8.5271, title: 'Maghera Beach and Caves', description: 'Stunning beach with caves accessible only at low tide. Remember to check tide times!' },
+            { lat: 54.7583, lng: -8.5144, title: 'Assaranca Waterfall', description: 'A beautiful and easily accessible waterfall right by the road.' },
+            { lat: 54.7456, lng: -8.4635, title: 'Glengesh Pass', description: 'A dramatic and winding mountain pass with fantastic photo opportunities.' },
+            { lat: 54.7667, lng: -8.4000, title: 'Ardara', description: 'A great lunch stop known for its tweed and craft shops.' },
+            { lat: 54.8425, lng: -8.4667, title: 'Portnoo/Narin', description: 'Alternate lunch spot with a beautiful beach and golf course.' },
+            { lat: 54.9520, lng: -8.3580, title: 'Dungloe', description: 'The main town in The Rosses region.' },
+            { lat: 54.9822, lng: -8.4344, title: 'Burtonport', description: 'A small fishing village.' },
+            { lat: 55.0330, lng: -8.1120, title: 'Errigal Mountain Viewpoint', description: 'Offers a glimpse of Donegal\'s highest peak without the strenuous climb.' },
+            { lat: 55.0186, lng: -8.1115, title: 'Poisoned Glen', description: 'A hauntingly beautiful valley at the foot of Errigal.' },
+            { lat: 55.0442, lng: -8.3411, title: 'Donegal Airport (Carrickfinn)', description: 'Voted one of the most scenic airport approaches in the world.' }
+        ];
+        const day3A_Locations = [
+            { lat: 54.6361, lng: -8.4444, title: 'Killybegs', description: 'Starting point for the day.' },
+            { lat: 54.6540, lng: -8.1100, title: 'Donegal Town', description: 'A historic town with a central square called The Diamond.' },
+            { lat: 54.6550, lng: -8.1106, title: 'Donegal Castle', description: 'A beautifully restored 15th-century castle.' },
+            { lat: 54.6958, lng: -8.0449, title: 'Lough Eske', description: 'A scenic lough with opportunities for boat trips and walks.' }
+        ];
+        const day3B_Locations = [
+            { lat: 54.6361, lng: -8.4444, title: 'Killybegs', description: 'Starting point for the day.' },
+            { lat: 54.6150, lng: -8.1700, title: 'Murvagh Beach', description: 'A vast sandy beach perfect for a long walk, located near Donegal Town.' },
+            { lat: 54.4754, lng: -8.2838, title: 'Bundoran', description: 'A famous surfing town. Great for watching surfers or taking a lesson.' }
+        ];
+        const day3C_Locations = [
+            { lat: 54.6361, lng: -8.4444, title: 'Killybegs', description: 'Starting point for the day.' },
+            { lat: 55.1569, lng: -7.8648, title: 'Ards Forest Park', description: 'Offers beautiful walking trails through woodlands and along beaches.' }
+        ];
+
+        // --- GOOGLE MAPS SCRIPT ---
+        
+        let map;
+        let infoWindow;
+        let routes; 
+
+        // This is the main function that runs once the Google Maps API is ready
+        function initMap() {
+
+            // First, check if the API key has been replaced.
+            if (apiKey === 'YOUR_API_KEY' || !apiKey) {
+                document.getElementById('map').style.display = 'none'; // Hide the map
+                document.getElementById('legend').style.display = 'none'; // Hide the legend
+                document.getElementById('apiKeyError').style.display = 'block'; // Show the error
+                console.error("Google Maps API key is missing. Please replace 'YOUR_API_KEY' in the script.");
+                return; // Stop the function from running further
+            }
+        
+            // Initialize variables that depend on the Google Maps API
+            infoWindow = new google.maps.InfoWindow();
+            routes = {}; // To hold references to markers and polylines
+
+            const mapOptions = {
+                zoom: 9,
+                center: { lat: 54.85, lng: -8.35 }, // Centered on the heart of Donegal
+                mapTypeId: 'terrain',
+                styles: [ // Custom map styling
+                    { elementType: "geometry", stylers: [{ color: "#ebe3cd" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#523735" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#f5f1e6" }] },
+                    { featureType: "administrative", elementType: "geometry.stroke", stylers: [{ color: "#c9b2a6" }] },
+                    { featureType: "administrative.land_parcel", elementType: "geometry.stroke", stylers: [{ color: "#dcd2be" }] },
+                    { featureType: "administrative.land_parcel", elementType: "labels.text.fill", stylers: [{ color: "#ae9e91" }] },
+                    { featureType: "landscape.natural", elementType: "geometry", stylers: [{ color: "#dfd2ae" }] },
+                    { featureType: "poi", elementType: "geometry", stylers: [{ color: "#dfd2ae" }] },
+                    { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#93817c" }] },
+                    { featureType: "poi.park", elementType: "geometry.fill", stylers: [{ color: "#a5b076" }] },
+                    { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#447530" }] },
+                    { featureType: "road", elementType: "geometry", stylers: [{ color: "#f5f1e6" }] },
+                    { featureType: "road.arterial", elementType: "geometry", stylers: [{ color: "#fdfcf8" }] },
+                    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#f8c967" }] },
+                    { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#e9bc62" }] },
+                    { featureType: "road.highway.controlled_access", elementType: "geometry", stylers: [{ color: "#e98d58" }] },
+                    { featureType: "road.highway.controlled_access", elementType: "geometry.stroke", stylers: [{ color: "#db8555" }] },
+                    { featureType: "road.local", elementType: "labels.text.fill", stylers: [{ color: "#806b63" }] },
+                    { featureType: "transit.line", elementType: "geometry", stylers: [{ color: "#dfd2ae" }] },
+                    { featureType: "transit.line", elementType: "labels.text.fill", stylers: [{ color: "#8f7d77" }] },
+                    { featureType: "transit.line", elementType: "labels.text.stroke", stylers: [{ color: "#ebe3cd" }] },
+                    { featureType: "transit.station", elementType: "geometry", stylers: [{ color: "#dfd2ae" }] },
+                    { featureType: "water", elementType: "geometry.fill", stylers: [{ color: "#b9d3c2" }] },
+                    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#92998d" }] },
+                ],
+            };
+
+            map = new google.maps.Map(document.getElementById('map'), mapOptions);
+
+            const itinerary = [
+                { name: 'Day 1: Slieve League', locations: day1Locations, color: '#c2185b' },
+                { name: 'Day 2: Wild Atlantic Way', locations: day2Locations, color: '#0288d1' },
+                { name: 'Day 3 (A): Donegal Town', locations: day3A_Locations, color: '#f57c00' },
+                { name: 'Day 3 (B): Coastal', locations: day3B_Locations, color: '#7b1fa2' },
+                { name: 'Day 3 (C): Ards Park', locations: day3C_Locations, color: '#388e3c' }
+            ];
+
+            const legendContainer = document.getElementById('legend-items');
+
+            itinerary.forEach(day => {
+                addRouteToMap(day.name, day.locations, day.color);
+                addLegendItem(day.name, day.color, legendContainer);
+            });
+        }
+
+        function addRouteToMap(name, locations, color) {
+            const pathCoordinates = [];
+            const markers = [];
+
+            locations.forEach((location, index) => {
+                const marker = new google.maps.Marker({
+                    position: { lat: location.lat, lng: location.lng },
+                    map: map,
+                    title: location.title,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 7,
+                        fillColor: color,
+                        fillOpacity: 1,
+                        strokeColor: 'white',
+                        strokeWeight: 2,
+                    },
+                    zIndex: locations.length - index
+                });
+
+                pathCoordinates.push(marker.getPosition());
+                markers.push(marker);
+
+                marker.addListener('click', () => {
+                    const content = `
+                        <div class="info-window-content">
+                            <h3>${location.title}</h3>
+                            <p>${location.description}</p>
+                        </div>`;
+                    infoWindow.setContent(content);
+                    infoWindow.open(map, marker);
+                });
+            });
+
+            const polyline = new google.maps.Polyline({
+                path: pathCoordinates,
+                geodesic: true,
+                strokeColor: color,
+                strokeOpacity: 0.7,
+                strokeWeight: 4
+            });
+
+            polyline.setMap(map);
+            
+            routes[name] = { markers, polyline };
+        }
+        
+        function addLegendItem(name, color, container) {
+            const item = document.createElement('div');
+            item.className = 'flex items-center mb-2 cursor-pointer';
+            item.innerHTML = `
+                <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${color}; border: 1px solid rgba(0,0,0,0.2);"></span>
+                <span class="text-gray-700 text-sm">${name}</span>
+            `;
+            
+            item.addEventListener('click', () => {
+                toggleRouteVisibility(name);
+                item.classList.toggle('opacity-50');
+            });
+            
+            container.appendChild(item);
+        }
+
+        function toggleRouteVisibility(name) {
+            const route = routes[name];
+            if (!route) return;
+
+            const isVisible = route.polyline.getMap() !== null;
+            const newMap = isVisible ? null : map;
+
+            route.polyline.setMap(newMap);
+            route.markers.forEach(marker => marker.setMap(newMap));
+        }
+
+        // --- Function to load the Google Maps script dynamically ---
+        function loadGoogleMapsScript() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+
+        // Load the script on window load
+        window.onload = loadGoogleMapsScript;
+
+    </script>
+    
+    <!-- 
+      The Google Maps script is now loaded dynamically by the function above.
+      You still need a Google Maps API key for this to work.
+      1. Go to the Google Cloud Console: https://console.cloud.google.com/
+      2. Create a new project (or select an existing one).
+      3. In the menu, go to "APIs & Services" > "Enabled APIs & services".
+      4. Click "+ ENABLE APIS AND SERVICES", search for "Maps JavaScript API", and enable it.
+      5. Go to "APIs & Services" > "Credentials".
+      6. Click "+ CREATE CREDENTIALS" and choose "API key".
+      7. Copy the generated API key.
+      8. IMPORTANT: Restrict your key! This is crucial for security. Click on the new key, and under "API restrictions", select "Restrict key" and choose "Maps JavaScript API" from the dropdown.
+      9. Paste your new, restricted key into the `apiKey` constant at the top of the <script> block in this file.
+    -->
+
+</body>
+</html>
